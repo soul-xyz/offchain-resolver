@@ -4,6 +4,89 @@ const namehash = require('eth-ens-namehash');
 const { defaultAbiCoder, SigningKey, arrayify, hexConcat } = require("ethers/lib/utils");
 
 const TEST_ADDRESS = "0xCAfEcAfeCAfECaFeCaFecaFecaFECafECafeCaFe";
+describe('OffchainResolver Configuration', function () {
+    let owner, relayer, resolver, newRelayer, newUrl, signer1, signer2, signer3, OffchainResolver;
+
+    before(async () => {
+        const signers = await ethers.getSigners();
+        owner = signers[0];
+        relayer = signers[1];
+        signer1 = signers[2].address;
+        signer2 = signers[3].address;
+        signer3 = signers[4].address;
+        newRelayer = signers[5].address;
+        newUrl = "http://newurl.com";
+        OffchainResolver = await ethers.getContractFactory("OffchainResolver");
+        resolver = await OffchainResolver.connect(owner).deploy("http://localhost:8080/", [signer1, signer2, signer3]);
+    });
+
+    beforeEach(async () => {
+        snapshot = await ethers.provider.send("evm_snapshot", []);
+    });
+
+    afterEach(async () => {
+        await ethers.provider.send("evm_revert", [snapshot]);
+    })
+
+    describe('setRelayer()', async () => {
+        it('allows the owner to change the relayer', async () => {
+            await resolver.setRelayer(newRelayer);
+            expect(await resolver.relayer()).to.equal(newRelayer);
+        });
+
+        it('does not allow a non-owner to change the relayer', async () => {
+            await expect(resolver.connect(ethers.provider.getSigner(newRelayer)).setRelayer(newRelayer)).to.be.revertedWith('Ownable: caller is not the owner');
+        });
+    });
+
+    describe('setGatewayUrl()', async () => {
+        it('allows the relayer to change the gateway URL', async () => {
+            await resolver.setRelayer(newRelayer);
+            await resolver.connect(ethers.provider.getSigner(newRelayer)).setGatewayUrl("http://newurl.com");
+            expect(await resolver.url()).to.equal("http://newurl.com");
+        });
+
+        it('does not allow a non-relayer to change the gateway URL', async () => {
+            await expect(resolver.connect(ethers.provider.getSigner(relayer.address)).setGatewayUrl("http://anothernewurl.com")).to.be.revertedWith('Unauthorized: caller is not the relayer');
+        });
+    });
+
+    describe('addSigners()', async () => {
+        it('allows the relayer to add signers', async () => {
+            await resolver.setRelayer(newRelayer);
+            await resolver.connect(ethers.provider.getSigner(newRelayer)).addSigners([signer1, signer2]);
+            expect(await resolver.signers(signer1)).to.equal(true);
+            expect(await resolver.signers(signer2)).to.equal(true);
+        });
+
+        it('does not allow a non-relayer to add signers', async () => {
+            await expect(resolver.connect(ethers.provider.getSigner(relayer.address)).addSigners([signer3])).to.be.revertedWith('Unauthorized: caller is not the relayer');
+        });
+    });
+
+    describe('relayer()', async () => {
+        it('returns correct relayer', async () => {
+            await resolver.connect(owner).setRelayer(newRelayer);
+            expect(await resolver.relayer()).to.equal(newRelayer);
+        });
+    });
+
+    describe('removeSigners()', async () => {
+        it('allows the relayer to remove signers', async () => {
+            await resolver.setRelayer(newRelayer);
+            await resolver.connect(ethers.provider.getSigner(newRelayer)).addSigners([signer1, signer2]);
+            await resolver.connect(ethers.provider.getSigner(newRelayer)).removeSigners([signer1]);
+            expect(await resolver.signers(signer1)).to.equal(false);
+            expect(await resolver.signers(signer2)).to.equal(true);
+        });
+
+        it('does not allow a non-relayer to remove signers', async () => {
+            await resolver.setRelayer(newRelayer);
+            await resolver.connect(ethers.provider.getSigner(newRelayer)).addSigners([signer1, signer2]);
+            await expect(resolver.connect(ethers.provider.getSigner(relayer.address)).removeSigners([signer2])).to.be.revertedWith('Unauthorized: caller is not the relayer');
+        });
+    });
+});
 
 describe('OffchainResolver', function (accounts) {
     let signer, address, resolver, snapshot, signingKey, signingAddress;
@@ -77,7 +160,8 @@ describe('OffchainResolver', function (accounts) {
 
         it('resolves an address given a valid signature', async () => {
             // Generate the response data
-            const response = defaultAbiCoder.encode(['bytes', 'uint64', 'bytes'], [resultData, expires, hexConcat([sig.r, sig._vs])]);
+            const response = defaultAbiCoder.encode(['bytes', 'uint64', 'bytes'], [resultData, expires, ethers.utils.joinSignature(sig)]);
+
 
             // Call the function with the request and response
             const [result] = iface.decodeFunctionResult("addr", await resolver.resolveWithProof(response, callData));

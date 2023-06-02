@@ -47,7 +47,7 @@ module.exports = {
   },
   namedAccounts: {
     signer: {
-      default: '0x6a6D58A605049191a1F2845C63B79ae73DFe920b',
+      default: 'TODO: change me',
     },
     deployer: {
       default: 1,
