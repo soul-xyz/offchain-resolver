@@ -1,6 +1,11 @@
 import { ethers, network, waffle } from "hardhat";
 import fs from "fs";
 
+/*
+npx hardhat run --network goerli scripts/deploy.ts
+
+npx hardhat verify --network goerli {address} --constructor-args arguments.js
+*/
 const config = {
   production: {
     OWNER_ADDRESS: "0xYourProductionOwnerAddress",
@@ -49,6 +54,7 @@ async function main() {
 
   const OffchainResolver = await ethers.getContractFactory("OffchainResolver");
 
+  console.log('Gateway URL ', GATEWAY_URL, ' signer address', SIGNER_ADDRESS);
   const offchainResolver = await OffchainResolver.deploy(
     GATEWAY_URL,
     [SIGNER_ADDRESS] // You can add more initial signers to the array if needed
@@ -69,13 +75,6 @@ async function main() {
   };
 
   console.log(info);
-
-  if (!isLocal) {
-    fs.writeFileSync(
-      `${__dirname}/../networks/${networkName}.json`,
-      JSON.stringify(info, null, 2)
-    );
-  }
 }
 
 main()

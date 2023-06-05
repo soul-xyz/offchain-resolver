@@ -3,17 +3,13 @@ require('@nomiclabs/hardhat-ethers');
 require('@nomiclabs/hardhat-waffle');
 require('hardhat-deploy');
 require('hardhat-deploy-ethers');
+require('solidity-coverage');
 
-const gatewayurl =
+const devgatewayurl =
   'http://ccip-read-gateway-env.eba-43ukavvq.us-west-2.elasticbeanstalk.com/{sender}/{data}.json';
 
-let devgatewayurl = 'http://localhost:8080/{sender}/{data}.json';
-if (process.env.REMOTE_GATEWAY) {
-  devgatewayurl =
-    `${process.env.REMOTE_GATEWAY}/{sender}/{data}.json`;
-}
 
-const { alchemyAPIKey, deployerPrivateKey, etherscanAPIKey, coinmarketcapAPIKey } = require('./env.json');
+const { alchemyAPIKey, deployerPrivateKey, etherscanAPIKey } = require('./env.json');
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -29,28 +25,13 @@ module.exports = {
     goerli: {
       url: `http://eth-goerli.alchemyapi.io/v2/${alchemyAPIKey}`,
       accounts: [deployerPrivateKey],
-      gatewayurl,
     },
     mainnet: {
       url: `https://eth-mainnet.alchemyapi.io/v2/${alchemyAPIKey}`,
       accounts: [deployerPrivateKey],
-      gatewayurl,
     },
   },
   etherscan: {
     apiKey: etherscanAPIKey,
-  },
-  gasReporter: {
-    enabled: true,
-    currency: 'USD',
-    coinmarketcap: coinmarketcapAPIKey,
-  },
-  namedAccounts: {
-    signer: {
-      default: 'TODO: change me',
-    },
-    deployer: {
-      default: 1,
-    },
   },
 };
